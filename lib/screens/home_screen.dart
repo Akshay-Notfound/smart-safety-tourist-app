@@ -12,7 +12,7 @@ import 'itinerary_screen.dart';
 import 'emergency_contacts_screen.dart';
 import 'document_upload_screen.dart';
 import 'aadhar_detail_screen.dart';
-import 'edit_profile_screen.dart'; // Add this import
+import 'edit_profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final Location _locationService = Location();
   StreamSubscription<LocationData>? _locationSubscription;
   final String _weatherApiKey = "ea2ffad27dfe39aae155a62240a965b7";
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -325,14 +327,38 @@ class _HomeScreenState extends State<HomeScreen> {
           .collection('live_locations')
           .doc(user!.uid)
           .update({'status': 'panic'});
-    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Panic Button Pressed! Alerting authorities...'),
-        backgroundColor: Colors.red,
-      ),
-    );
+      // Show confirmation dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Panic Alert Sent!'),
+              content: const Text('Authorities have been notified. Help is on the way.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    }
+  }
+
+  void _navigateToScreen(Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    ).then((value) {
+      if (value == true) {
+        // Refresh user data after successful edit
+        _fetchUserData();
+      }
+    });
   }
 
   @override
@@ -343,9 +369,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _safetyScore > 50 ? Colors.green.shade800 : Colors.red.shade800;
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: const Text('Home - Smart Safety'),
         backgroundColor: Colors.deepPurple.shade400,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            _scaffoldKey.currentState?.openDrawer();
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -355,6 +388,141 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade400,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      userData?['fullName']?.toString().isNotEmpty == true
+                          ? userData!['fullName'][0].toUpperCase()
+                          : 'T',
+                      style: TextStyle(
+                        fontSize: 24,
+                        color: Colors.deepPurple.shade400,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    userData?['fullName'] ?? 'Tourist',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    userData?['email'] ?? '',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Edit Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                if (userData != null) {
+                  _navigateToScreen(EditProfileScreen(userData: userData!));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.badge_outlined),
+              title: const Text('View Digital ID'),
+              onTap: () {
+                Navigator.pop(context);
+                if (userData != null) {
+                  _navigateToScreen(DigitalIdScreen(userData: userData!));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.map_outlined),
+              title: const Text('Manage Itinerary'),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen(ItineraryScreen());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.contact_phone_outlined),
+              title: const Text('Emergency Contacts'),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen(EmergencyContactsScreen());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.upload_file),
+              title: const Text('Upload Documents'),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen(DocumentUploadScreen());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.badge),
+              title: const Text('View Aadhaar Details'),
+              onTap: () {
+                Navigator.pop(context);
+                if (user != null) {
+                  _navigateToScreen(AadharDetailScreen(userId: user!.uid));
+                }
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.shield_outlined),
+              title: const Text('Safety Status'),
+              onTap: () {
+                Navigator.pop(context);
+                _refreshSafetyStatus();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.track_changes_outlined),
+              title: const Text('Live Tracking'),
+              trailing: Switch(
+                value: _isSharingLocation,
+                onChanged: (value) {
+                  Navigator.pop(context);
+                  _toggleLocationSharing(value);
+                },
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _toggleLocationSharing(!_isSharingLocation);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () async {
+                Navigator.pop(context);
+                _stopLocationUpdates();
+                await FirebaseAuth.instance.signOut();
+              },
+            ),
+          ],
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -627,47 +795,57 @@ class WeatherInfoSheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.blue.shade300,
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade300, Colors.blue.shade500],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            weatherData['name'] ?? 'Current Location',
-            style: const TextStyle(
-                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(_getWeatherIcon(condition), size: 60, color: Colors.white),
-              const SizedBox(width: 20),
-              Text(
-                '$temp°C',
-                style: const TextStyle(
-                    fontSize: 60,
-                    fontWeight: FontWeight.w200,
-                    color: Colors.white),
+              const Text(
+                'Weather Information',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          Icon(
+            _getWeatherIcon(condition),
+            size: 60,
+            color: Colors.white,
+          ),
+          const SizedBox(height: 16),
           Text(
             condition,
             style: const TextStyle(
-                fontSize: 20, color: Colors.white70, letterSpacing: 2),
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
-          const Divider(color: Colors.white54, height: 40),
+          const SizedBox(height: 8),
+          Text(
+            '${temp}°C',
+            style: const TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildWeatherDetail(Icons.air, 'Wind', '$windSpeed km/h'),
-              _buildWeatherDetail(
-                  Icons.water_drop_outlined, 'Humidity', '$humidity%'),
+              _buildWeatherDetail(Icons.water_drop, 'Humidity', '$humidity%'),
             ],
           ),
         ],
@@ -678,17 +856,25 @@ class WeatherInfoSheet extends StatelessWidget {
   Widget _buildWeatherDetail(IconData icon, String label, String value) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white, size: 28),
+        Icon(icon, size: 30, color: Colors.white),
         const SizedBox(height: 8),
-        Text(value,
-            style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontWeight: FontWeight.bold)),
-        Text(label,
-            style: const TextStyle(fontSize: 14, color: Colors.white70)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
       ],
     );
   }
 }
-

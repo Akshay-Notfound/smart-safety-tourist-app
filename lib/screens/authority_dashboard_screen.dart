@@ -20,6 +20,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen>
     with TickerProviderStateMixin {
   StreamSubscription? _panicSubscription;
   late TabController _tabController;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -53,9 +54,16 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: const Text('Authority Dashboard'),
         backgroundColor: Colors.deepPurple.shade400,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            _scaffoldKey.currentState?.openDrawer();
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -69,6 +77,101 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen>
           tabs: const [
             Tab(icon: Icon(Icons.list), text: 'List View'),
             Tab(icon: Icon(Icons.map), text: 'Map View'),
+          ],
+        ),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade400,
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.admin_panel_settings,
+                      size: 30,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Authority Panel',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Admin Dashboard',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.list),
+              title: const Text('Tourist List'),
+              onTap: () {
+                Navigator.pop(context);
+                _tabController.animateTo(0);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.map),
+              title: const Text('Map View'),
+              onTap: () {
+                Navigator.pop(context);
+                _tabController.animateTo(1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_scanner),
+              title: const Text('Scan Tourist ID'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const QRScannerScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.notifications_active),
+              title: const Text('Panic Alerts'),
+              onTap: () {
+                Navigator.pop(context);
+                // This would show panic alerts if we had a separate screen for them
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Monitoring panic alerts in real-time'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pop(context);
+                FirebaseAuth.instance.signOut();
+              },
+            ),
           ],
         ),
       ),
@@ -525,4 +628,3 @@ class LiveMapView extends StatelessWidget {
     );
   }
 }
-
